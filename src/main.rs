@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::io::{self, Write};
 use std::process;
 
@@ -15,7 +16,7 @@ fn get_command() -> String {
     let mut cmd = String::new();
     io::stdin().read_line(&mut cmd).expect("Failed to read line");
 
-    return cmd;
+    return cmd.trim().to_string();
 }
 
 fn cmd_processor(cmd: &str) {
@@ -27,38 +28,18 @@ fn cmd_processor(cmd: &str) {
 }
 
 fn sql_cmd_processor(cmd: &str) {
-    let sql_statement = to_sql_statement(cmd);
-    execute_sql(sql_statement);
-}
+    let sql_processors = [exec_insert, exec_select];
+    for exec_fn in sql_processors {
+        let success = exec_fn(cmd);
 
-fn to_sql_statement(raw_cmd: &str) -> SqlStatement {
-    if raw_cmd.starts_with("insert") {
-        return SqlStatement::Insert;
+        if success { return (); }
     }
 
-    if raw_cmd.starts_with("select") {
-        return SqlStatement::Select;
-    }
-
-    return SqlStatement::Unknown;
-}
-
-fn execute_sql(statement: SqlStatement) {
-    match statement {
-        SqlStatement::Select => {
-            println!("Select from database");
-        },
-        SqlStatement::Insert => {
-            println!("Inserting into database");
-        },
-        SqlStatement::Unknown => {
-            println!("Unrecognized SQL syntax");
-        }
-    }
+    println!("Unrecognized SQL syntax");
 }
 
 fn meta_cmd_processor(cmd: &str) {
-    if cmd.trim() == ".exit" || cmd.trim() == "^D" {
+    if cmd == ".exit" || cmd == "^D" {
         println!("Bye now ✌️");
         process::exit(0);
     } else {
@@ -66,8 +47,23 @@ fn meta_cmd_processor(cmd: &str) {
     }
 }
 
-enum SqlStatement {
-    Select,
-    Insert,
-    Unknown,
+fn exec_insert(cmd: &str) -> bool {
+    let insert_regex = Regex::new(r"^(?i)insert (?P<id>\d+) (?P<username>\w+) (?P<email>.+)$").unwrap();
+    
+    return match insert_regex.captures(cmd) {
+        Some(captured_groups) => {
+            let id = captured_groups.name("id").unwrap().as_str();
+            let username = captured_groups.name("username").unwrap().as_str();
+            let email = captured_groups.name("email").unwrap().as_str();
+
+            println!("Inserting user with id={}, username={}, email={}", id, username, email);
+            true
+        },
+        None => false,
+    };
+}
+fn exec_select(_cmd: &str) -> bool {
+    println!("selecting");
+
+    false
 }
