@@ -1,11 +1,17 @@
+mod store;
+
 use regex::Regex;
 use std::io::{self, Write};
 use std::process;
+use store::{Row, Table, TABLE_MAX_ROWS};
 
 fn main() {
+    let mut table = Table {
+        rows: Vec::with_capacity(TABLE_MAX_ROWS),
+    };
     loop {
         let cmd = get_command();
-        cmd_processor(&cmd);
+        cmd_processor(&cmd, &mut table);
     }
 }
 
@@ -14,25 +20,29 @@ fn get_command() -> String {
     io::stdout().flush().expect("Failed to flush");
 
     let mut cmd = String::new();
-    io::stdin().read_line(&mut cmd).expect("Failed to read line");
+    io::stdin()
+        .read_line(&mut cmd)
+        .expect("Failed to read line");
 
     return cmd.trim().to_string();
 }
 
-fn cmd_processor(cmd: &str) {
-   if cmd.starts_with('.')  {
+fn cmd_processor(cmd: &str, table: &mut Table) {
+    if cmd.starts_with('.') {
         meta_cmd_processor(cmd);
     } else {
-        sql_cmd_processor(cmd);
+        sql_cmd_processor(cmd, table);
     }
 }
 
-fn sql_cmd_processor(cmd: &str) {
+fn sql_cmd_processor(cmd: &str, table: &mut Table) {
     let sql_processors = [exec_insert, exec_select];
     for exec_fn in sql_processors {
-        let success = exec_fn(cmd);
+        let success = exec_fn(cmd, table);
 
-        if success { return (); }
+        if success {
+            return ();
+        }
     }
 
     println!("Unrecognized SQL syntax");
@@ -47,23 +57,20 @@ fn meta_cmd_processor(cmd: &str) {
     }
 }
 
-fn exec_insert(cmd: &str) -> bool {
-    let insert_regex = Regex::new(r"^(?i)insert (?P<id>\d+) (?P<username>\w+) (?P<email>.+)$").unwrap();
-    
+fn exec_insert(cmd: &str, table: &mut Table) -> bool {
+    let insert_regex =
+        Regex::new(r"^(?i)insert (?P<id>\d+) (?P<username>\w+) (?P<email>.+)$").unwrap();
     return match insert_regex.captures(cmd) {
         Some(captured_groups) => {
-            let id = captured_groups.name("id").unwrap().as_str();
-            let username = captured_groups.name("username").unwrap().as_str();
-            let email = captured_groups.name("email").unwrap().as_str();
+            table.insert_row(Row::from(captured_groups));
 
-            println!("Inserting user with id={}, username={}, email={}", id, username, email);
             true
-        },
+        }
         None => false,
     };
 }
-fn exec_select(_cmd: &str) -> bool {
-    println!("selecting");
 
-    false
+fn exec_select(_cmd: &str, table: &mut Table) -> bool {
+    table.list_rows();
+    true
 }
