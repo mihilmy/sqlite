@@ -21,7 +21,7 @@ impl Table {
     println!("ERR: Table is at MAX_CAPACITY={}", TABLE_MAX_ROWS);
   }
 
-  pub fn list_rows(&self) {
+  pub fn list_rows(&self) -> &Vec<Row> {
     if self.rows.is_empty() {
       println!("Table is empty!");
     }
@@ -29,6 +29,8 @@ impl Table {
     for row in &self.rows {
       println!("{:?}", row);
     }
+
+    return &self.rows;
   }
 }
 
@@ -47,5 +49,35 @@ impl Row {
   fn get_captured_value(captured: &regex::Captures, name_key: &str) -> String {
     let captured_value = captured.name(name_key).unwrap().as_str();
     String::from(captured_value)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_insertion_retrieval() {
+    // Prepare test data
+    let mut table = Table {
+      rows: Vec::with_capacity(TABLE_MAX_ROWS),
+    };
+
+    let test_row = Row {
+      id: String::from("uid-0137"),
+      username: String::from("mihilmy"),
+      email: String::from("mihilmy@gmail.com"),
+    };
+
+    // Invoke the test
+    table.insert_row(test_row);
+    let rows = table.list_rows();
+
+    // Assert there is only a single row
+    assert_eq!(rows.len(), 1);
+
+    let row1 = rows.get(0).unwrap();
+    assert_eq!(row1.username, "mihilmy");
+    assert_eq!(row1.email, "mihilmy@gmail.com");
   }
 }
